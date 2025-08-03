@@ -8,9 +8,7 @@ const corsHeaders = {
 };
 
 interface CartItem {
-  product_name: string;
-  product_description: string;
-  price: number;
+  stripe_price_id: string;
   quantity: number;
 }
 
@@ -52,24 +50,15 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Create line items for Stripe checkout
-    const lineItems = cartItems.map((item) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: item.product_name,
-          description: item.product_description
-        },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity,
-    }));
-
-    // Calculate total amount
-    const totalAmount = cartItems.reduce(
-      (sum: number, item) => sum + item.price * item.quantity,
-      0
-    );
+    // Create line items for Stripe checkout and calculate total
+    const lineItems = [] as { price: string; quantity: number }[];
+    let totalAmount = 0;
+    for (const item of cartItems) {
+      lineItems.push({ price: item.stripe_price_id, quantity: item.quantity });
+      const price = await stripe.prices.retrieve(item.stripe_price_id);
+      const unitAmount = price.unit_amount ?? 0;
+      totalAmount += (unitAmount * item.quantity) / 100;
+    }
 
     // Create a one-time payment session
     const session = await stripe.checkout.sessions.create({
