@@ -1,0 +1,41 @@
+-- Seed products table with logic kit offerings
+-- Remove existing products
+DELETE FROM public.products;
+
+-- Insert introduction to logic gates kit
+INSERT INTO public.products (
+  name,
+  description,
+  price,
+  category,
+  skill_level,
+  age_group,
+  stock_quantity
+) VALUES (
+  'Logic Gates Kit',
+  'Work with transistors and breadboards to build fundamental logic gates from scratch.',
+  49.99,
+  'electronics',
+  'beginner',
+  'high_school',
+  50
+);
+
+-- Insert fibonacci clock kit
+INSERT INTO public.products (
+  name,
+  description,
+  price,
+  category,
+  skill_level,
+  age_group,
+  stock_quantity
+) VALUES (
+  'Fibonacci Clock Kit',
+  'PCB-based clock kit that displays time using the Fibonacci sequence.',
+  59.99,
+  'electronics',
+  'intermediate',
+  'high_school',
+  30
+);
