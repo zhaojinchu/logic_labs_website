@@ -71,3 +71,14 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Syncing Stripe products
+
+To sync products between Supabase and Stripe:
+
+1. Copy `.env.example` to `.env`.
+2. Fill in the following values in `.env`:
+   - `SUPABASE_URL=your-supabase-project-url`
+   - `SUPABASE_SERVICE_ROLE_KEY=service-key`
+   - `STRIPE_SECRET_KEY=stripe-secret-key`
+3. Run `npm run sync:stripe` to perform the synchronization.
