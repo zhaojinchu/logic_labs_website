@@ -147,6 +147,24 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleOAuthSignIn("google")}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <img
+                    src="https://www.svgrepo.com/show/475656/google-color.svg"
+                    alt="Google"
+                    className="h-4 w-4 mr-2"
+                  />
+                )}
+                Continue with Google
+              </Button>
+
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="signin-email">Email</Label>
@@ -171,7 +189,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Sign In
                 </Button>
               </form>
@@ -203,7 +223,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Create Account
                 </Button>
               </form>
@@ -223,7 +245,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Send Reset Link
                 </Button>
               </form>
