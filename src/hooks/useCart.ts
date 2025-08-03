@@ -205,17 +205,10 @@ export function useCart() {
         return;
       }
 
-      if (cartItems.some(item => !item.stripe_price_id)) {
-        toast({
-          title: "Unavailable",
-          description: "Some items are not ready for checkout.",
-          variant: "destructive"
-        });
-        return;
-      }
-
       const payload = cartItems.map(item => ({
-        stripe_price_id: item.stripe_price_id!,
+        stripe_price_id: item.stripe_price_id,
+        price: item.price,
+        product_name: item.product_name,
         quantity: item.quantity,
       }));
 

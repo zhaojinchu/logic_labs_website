@@ -8,8 +8,10 @@ const corsHeaders = {
 };
 
 interface CartItem {
-  stripe_price_id: string;
+  stripe_price_id?: string;
+  price: number;
   quantity: number;
+  product_name: string;
 }
 
 serve(async (req) => {
@@ -26,7 +28,14 @@ serve(async (req) => {
 
   try {
     // Retrieve authenticated user
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
@@ -51,13 +60,44 @@ serve(async (req) => {
     }
 
     // Create line items for Stripe checkout and calculate total
-    const lineItems = [] as { price: string; quantity: number }[];
+    const lineItems = [] as (
+      | { price: string; quantity: number }
+      | { price_data: { currency: string; unit_amount: number; product_data: { name: string } }; quantity: number }
+    )[];
     let totalAmount = 0;
     for (const item of cartItems) {
-      lineItems.push({ price: item.stripe_price_id, quantity: item.quantity });
-      const price = await stripe.prices.retrieve(item.stripe_price_id);
-      const unitAmount = price.unit_amount ?? 0;
-      totalAmount += (unitAmount * item.quantity) / 100;
+      const priceId = item.stripe_price_id?.trim();
+      if (priceId) {
+        try {
+          await stripe.prices.retrieve(priceId);
+          lineItems.push({ price: priceId, quantity: item.quantity });
+        } catch (_) {
+          lineItems.push({
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(item.price * 100),
+              product_data: { name: item.product_name },
+            },
+            quantity: item.quantity,
+          });
+        }
+      } else {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            unit_amount: Math.round(item.price * 100),
+            product_data: { name: item.product_name },
+          },
+          quantity: item.quantity,
+        });
+      }
+      totalAmount += item.price * item.quantity;
+    }
+
+    const origin =
+      req.headers.get("origin") || Deno.env.get("SITE_URL") || "";
+    if (!origin) {
+      throw new Error("Site URL not configured");
     }
 
     // Create a one-time payment session
@@ -66,8 +106,8 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: lineItems,
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/`,
+      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/`,
       metadata: {
         user_id: user.id,
         total_amount: totalAmount.toString(),
