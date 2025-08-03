@@ -26,7 +26,14 @@ serve(async (req) => {
 
   try {
     // Retrieve authenticated user
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
@@ -60,14 +67,20 @@ serve(async (req) => {
       totalAmount += (unitAmount * item.quantity) / 100;
     }
 
+    const origin =
+      req.headers.get("origin") || Deno.env.get("SITE_URL") || "";
+    if (!origin) {
+      throw new Error("Site URL not configured");
+    }
+
     // Create a one-time payment session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: lineItems,
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/`,
+      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/`,
       metadata: {
         user_id: user.id,
         total_amount: totalAmount.toString(),
