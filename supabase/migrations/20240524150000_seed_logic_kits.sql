@@ -1,4 +1,6 @@
+
 DELETE FROM public.cart_items;
+
 -- Remove existing products
 DELETE FROM public.products;
 
@@ -13,7 +15,6 @@ INSERT INTO public.products (
   stock_quantity,
   stripe_product_id,
   stripe_price_id
-
 ) VALUES (
   'Logic Gates Kit',
   'Work with transistors and breadboards to build fundamental logic gates from scratch.',
