@@ -112,6 +112,7 @@ const Index = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="electronics">Electronics</SelectItem>
                 <SelectItem value="microcontroller">Microcontroller</SelectItem>
                 <SelectItem value="single_board_computer">Single Board Computer</SelectItem>
                 <SelectItem value="robotics">Robotics</SelectItem>

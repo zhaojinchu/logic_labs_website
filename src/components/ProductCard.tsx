@@ -74,15 +74,6 @@ export function ProductCard({ product, onAddToCart, isLoading = false }: Product
         <p className="text-muted-foreground text-sm mb-3 line-clamp-3">
           {product.description}
         </p>
-        
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            ))}
-          </div>
-          <span className="text-sm text-muted-foreground">(4.5)</span>
-        </div>
 
         <div className="text-sm text-muted-foreground">
           Category: <span className="capitalize">{product.category.replace('_', ' ')}</span>
