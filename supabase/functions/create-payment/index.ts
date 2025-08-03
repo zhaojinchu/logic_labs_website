@@ -5,8 +5,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 /*────────────────────────  CONFIG  ────────────────────────*/
 const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? "";
 const ANON_KEY      = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY2") ?? "";
 const SITE_URL      = Deno.env.get("SITE_URL") ?? "";
+
+console.log(STRIPE_SECRET)
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -64,8 +66,17 @@ serve(async (req) => {
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let totalCents = 0;
 
-  for (const { stripe_price_id, price, quantity, product_name } of cart) {
-    if (stripe_price_id?.trim()) {
+  const myprice = await stripe.products.retrieve("prod_Sngih7lAV25oPT");
+  console.log(myprice)
+
+  for (const item of cart) {
+    const { stripe_price_id, price, quantity, product_name } = item;
+
+    /* ─────── DEBUG ─────── */
+    console.log("🛒 cart item", item);
+    /* ───────────────────── */
+
+    if (stripe_price_id && stripe_price_id.startsWith("price_")) {
       line_items.push({ price: stripe_price_id, quantity });
     } else {
       line_items.push({
@@ -77,8 +88,10 @@ serve(async (req) => {
         quantity,
       });
     }
+
     totalCents += Math.round(price * 100) * quantity;
-  }
+  }   
+  
 
   const origin =
     req.headers.get("origin") ??
@@ -88,7 +101,9 @@ serve(async (req) => {
   if (!origin)
     return json({ error: "SITE_URL env var not set" }, 500);
 
+
   try {
+    console.log("Entered TRY")
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -101,7 +116,7 @@ serve(async (req) => {
         total_amount_cents: totalCents.toString(),
       },
     });
-
+    console.log("SOMETHING")
     return json({ url: session.url }, 200);
   } catch (err) {
     console.error("Stripe error:", err);
