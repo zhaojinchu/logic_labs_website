@@ -1,4 +1,4 @@
--- Seed products table with logic kit offerings
+DELETE FROM public.cart_items;
 -- Remove existing products
 DELETE FROM public.products;
 
@@ -10,7 +10,10 @@ INSERT INTO public.products (
   category,
   skill_level,
   age_group,
-  stock_quantity
+  stock_quantity,
+  stripe_product_id,
+  stripe_price_id
+
 ) VALUES (
   'Logic Gates Kit',
   'Work with transistors and breadboards to build fundamental logic gates from scratch.',
@@ -18,7 +21,9 @@ INSERT INTO public.products (
   'electronics',
   'beginner',
   'high_school',
-  50
+  50,
+  NULL,
+  NULL
 );
 
 -- Insert fibonacci clock kit
@@ -29,7 +34,9 @@ INSERT INTO public.products (
   category,
   skill_level,
   age_group,
-  stock_quantity
+  stock_quantity,
+  stripe_product_id,
+  stripe_price_id
 ) VALUES (
   'Fibonacci Clock Kit',
   'PCB-based clock kit that displays time using the Fibonacci sequence.',
@@ -37,5 +44,7 @@ INSERT INTO public.products (
   'electronics',
   'intermediate',
   'high_school',
-  30
+  30,
+  NULL,
+  NULL
 );
