@@ -153,9 +153,14 @@ const Index = () => {
       {/* Products */}
       <section className="py-12">
         <div className="container mx-auto px-4">
-          <ProductGrid 
+          <ProductGrid
             categoryFilter={categoryFilter}
             skillLevelFilter={skillLevelFilter}
+            onCartChange={() => {
+              if (user) {
+                fetchCartItemCount(user.id);
+              }
+            }}
           />
         </div>
       </section>

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,15 +12,22 @@ interface CartModalProps {
 }
 
 export function CartModal({ isOpen, onClose }: CartModalProps) {
-  const { 
-    cartItems, 
-    loading, 
-    updateQuantity, 
-    removeItem, 
-    clearCart, 
-    getTotalPrice, 
-    checkout 
+  const {
+    cartItems,
+    loading,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    getTotalPrice,
+    checkout,
+    refreshCart
   } = useCart();
+
+  useEffect(() => {
+    if (isOpen) {
+      refreshCart();
+    }
+  }, [isOpen, refreshCart]);
 
   const handleCheckout = async () => {
     await checkout();

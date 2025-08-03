@@ -39,10 +39,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
       
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -68,10 +69,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
       
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {

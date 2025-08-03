@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ProductCard } from "./ProductCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -21,18 +21,15 @@ interface ProductGridProps {
   searchQuery?: string;
   categoryFilter?: string;
   skillLevelFilter?: string;
+  onCartChange?: () => void;
 }
 
-export function ProductGrid({ searchQuery, categoryFilter, skillLevelFilter }: ProductGridProps) {
+export function ProductGrid({ searchQuery, categoryFilter, skillLevelFilter, onCartChange }: ProductGridProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [searchQuery, categoryFilter, skillLevelFilter]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase.from('products').select('*');
@@ -63,7 +60,11 @@ export function ProductGrid({ searchQuery, categoryFilter, skillLevelFilter }: P
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, categoryFilter, skillLevelFilter]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleAddToCart = async (productId: string) => {
     try {
@@ -114,6 +115,8 @@ export function ProductGrid({ searchQuery, categoryFilter, skillLevelFilter }: P
         title: "Added to Cart",
         description: "Item successfully added to your cart!",
       });
+
+      onCartChange?.();
 
     } catch (error) {
       console.error('Error adding to cart:', error);

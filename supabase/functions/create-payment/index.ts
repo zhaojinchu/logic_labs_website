@@ -7,6 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface CartItem {
+  product_name: string;
+  product_description: string;
+  price: number;
+  quantity: number;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -28,7 +35,7 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
 
     // Parse request body to get cart items
-    const { cartItems } = await req.json();
+    const { cartItems } = (await req.json()) as { cartItems: CartItem[] };
     if (!cartItems || cartItems.length === 0) {
       throw new Error("No items in cart");
     }
@@ -46,12 +53,12 @@ serve(async (req) => {
     }
 
     // Create line items for Stripe checkout
-    const lineItems = cartItems.map((item: any) => ({
+    const lineItems = cartItems.map((item) => ({
       price_data: {
         currency: "usd",
-        product_data: { 
+        product_data: {
           name: item.product_name,
-          description: item.product_description 
+          description: item.product_description
         },
         unit_amount: Math.round(item.price * 100), // Convert to cents
       },
@@ -59,8 +66,9 @@ serve(async (req) => {
     }));
 
     // Calculate total amount
-    const totalAmount = cartItems.reduce((sum: number, item: any) => 
-      sum + (item.price * item.quantity), 0
+    const totalAmount = cartItems.reduce(
+      (sum: number, item) => sum + item.price * item.quantity,
+      0
     );
 
     // Create a one-time payment session
