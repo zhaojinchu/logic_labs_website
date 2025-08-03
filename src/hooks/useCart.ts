@@ -10,6 +10,7 @@ interface CartItem {
   product_name: string;
   product_description: string;
   price: number;
+  stripe_price_id?: string;
   image_url?: string;
 }
 
@@ -34,7 +35,8 @@ export function useCart() {
             name,
             description,
             price,
-            image_url
+            image_url,
+            stripe_price_id
           )
         `)
         .eq('user_id', user.id);
@@ -49,6 +51,7 @@ export function useCart() {
         product_description: item.products.description,
         price: item.products.price,
         image_url: item.products.image_url,
+        stripe_price_id: item.products.stripe_price_id,
       })) || [];
 
       setCartItems(formattedItems);
@@ -202,8 +205,22 @@ export function useCart() {
         return;
       }
 
+      if (cartItems.some(item => !item.stripe_price_id)) {
+        toast({
+          title: "Unavailable",
+          description: "Some items are not ready for checkout.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const payload = cartItems.map(item => ({
+        stripe_price_id: item.stripe_price_id!,
+        quantity: item.quantity,
+      }));
+
       const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: { cartItems }
+        body: { cartItems: payload }
       });
 
       if (error) throw error;
