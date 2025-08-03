@@ -65,7 +65,8 @@ const Index = () => {
       <Header
         cartItemCount={cartItemCount}
         onCartClick={() => setCartModalOpen(true)}
-        onLoginClick={() => user ? handleSignOut() : setAuthModalOpen(true)}
+        //onLoginClick={() => user ? handleSignOut() : setAuthModalOpen(true)}
+        onLoginClick={() => setAuthModalOpen(true)}
         isLoggedIn={!!user}
         userEmail={user?.email}
       />
