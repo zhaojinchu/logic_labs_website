@@ -1,4 +1,4 @@
--- Clear cart items first to avoid foreign key violations
+
 DELETE FROM public.cart_items;
 
 -- Remove existing products
