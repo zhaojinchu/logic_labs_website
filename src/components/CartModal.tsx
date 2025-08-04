@@ -119,7 +119,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
                       onClick={() => removeItem(item.id)}
                     >
                       <X className="h-3 w-3" />
@@ -143,7 +143,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
             <Separator />
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={clearCart} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={clearCart}
+                className="flex-1 text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
+              >
                 Clear Cart
               </Button>
               <Button onClick={handleCheckout} className="flex-1">
