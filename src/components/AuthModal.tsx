@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -168,10 +169,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       toast({ title: "Account Deleted" });
       setUser(null);
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete account.";
       toast({
         title: "Error",
-        description: error.message || "Failed to delete account.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -197,7 +199,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input value={user.email} disabled />
+                <Input value={user?.email ?? ""} disabled />
               </div>
               {user.user_metadata?.full_name && (
                 <div className="space-y-2">
