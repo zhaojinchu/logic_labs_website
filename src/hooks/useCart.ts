@@ -206,6 +206,7 @@ export function useCart() {
       }
 
       const payload = cartItems.map(item => ({
+        product_id: item.product_id,
         stripe_price_id: item.stripe_price_id,
         price: item.price,
         product_name: item.product_name,
