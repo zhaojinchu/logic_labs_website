@@ -27,8 +27,17 @@ serve(async (req) => {
   if (!authHeader)
     return json({ error: "Missing bearer token" }, 401, corsHeaders);
 
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = createClient(SUPABASE_URL, ANON_KEY);
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  if (!token)
+    return json({ error: "Invalid authorization header" }, 401, corsHeaders);
+
+  const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+    auth: {
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
   if (userError || !user)
@@ -45,7 +54,10 @@ serve(async (req) => {
   if (!sessionId)
     return json({ error: "Missing session_id" }, 400, corsHeaders);
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, detectSessionInUrl: false },
+  });
+
   const { data: order, error: orderError } = await admin
     .from("orders")
     .select(`
