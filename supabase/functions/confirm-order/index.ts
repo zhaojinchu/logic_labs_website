@@ -9,7 +9,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -20,16 +19,24 @@ serve(async (req) => {
   if (req.method !== "POST")
     return json({ error: "Method not allowed" }, 405, corsHeaders);
 
-  if (!SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY)
+  if (!SUPABASE_URL || !ANON_KEY)
     return json({ error: "Supabase configuration missing" }, 500, corsHeaders);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader)
     return json({ error: "Missing bearer token" }, 401, corsHeaders);
 
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = createClient(SUPABASE_URL, ANON_KEY);
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+    auth: {
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+    global: {
+      headers: { Authorization: authHeader },
+    },
+  });
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user)
     return json({ error: "Invalid or expired token" }, 401, corsHeaders);
@@ -45,8 +52,7 @@ serve(async (req) => {
   if (!sessionId)
     return json({ error: "Missing session_id" }, 400, corsHeaders);
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-  const { data: order, error: orderError } = await admin
+  const { data: order, error: orderError } = await supabase
     .from("orders")
     .select(`
       id,
