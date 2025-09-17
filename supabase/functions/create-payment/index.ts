@@ -2,132 +2,212 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-/*────────────────────────  CONFIG  ────────────────────────*/
-const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? "";
-const ANON_KEY      = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY2") ?? "";
-const SITE_URL      = Deno.env.get("SITE_URL") ?? "";
-
-console.log(STRIPE_SECRET)
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+type CartPayloadItem = {
+  product_id: string;
+  quantity: number;
 };
 
-/*────────────────────────  TYPES  ─────────────────────────*/
-interface CartItem {
-  stripe_price_id?: string;
-  price: number;            // USD
+type CartMetadataItem = {
+  product_id: string;
   quantity: number;
+  unit_amount_cents: number;
+  stripe_price_id: string | null;
+  cart_item_id: string;
   product_name: string;
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const SITE_URL = Deno.env.get("SITE_URL") ?? "";
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY || !STRIPE_SECRET) {
+  console.error("[create-payment] Missing required environment variables", {
+    hasSupabaseUrl: Boolean(SUPABASE_URL),
+    hasServiceRole: Boolean(SUPABASE_SERVICE_ROLE_KEY),
+    hasAnon: Boolean(SUPABASE_ANON_KEY),
+    hasStripeSecret: Boolean(STRIPE_SECRET),
+  });
 }
 
-/*───────────────────────  HANDLER  ───────────────────────*/
-serve(async (req) => {
-  /* CORS pre-flight --------------------------------------------------------*/
-  if (req.method === "OPTIONS")
-    return new Response(null, { headers: cors });
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
-  /* Auth -------------------------------------------------------------------*/
+serve(async (req) => {
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
+
+  if (req.method !== "POST")
+    return json({ error: "Method not allowed" }, 405);
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY || !STRIPE_SECRET) {
+    console.error("[create-payment] Server configuration error: missing env vars");
+    return json({ error: "Server configuration error", code: "CONFIG_MISSING" }, 500);
+  }
+
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader)
+  if (!authHeader?.startsWith("Bearer "))
     return json({ error: "Missing bearer token" }, 401);
 
   const jwt = authHeader.replace("Bearer ", "");
-  const supabase = createClient(SUPABASE_URL, ANON_KEY);
-  const { data: { user }, error: userErr } = await supabase.auth.getUser(jwt);
-  if (userErr || !user?.email)
+
+  const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser(jwt);
+
+  if (userErr || !user?.id || !user.email)
     return json({ error: "Invalid or expired token" }, 401);
 
-  /* Parse body -------------------------------------------------------------*/
-  let cart: CartItem[];
+  let cartPayload: CartPayloadItem[] = [];
   try {
-    ({ cartItems: cart } = await req.json());
+    const body = await req.json();
+    cartPayload = body?.cartItems ?? [];
   } catch {
     return json({ error: "Invalid JSON body" }, 400);
   }
-  if (!Array.isArray(cart) || cart.length === 0)
+
+  if (!Array.isArray(cartPayload) || cartPayload.length === 0)
     return json({ error: "Cart is empty" }, 400);
 
-  /* Stripe -----------------------------------------------------------------*/
-  const stripe = new Stripe(STRIPE_SECRET, { apiVersion: "2023-10-16" });
+  if (cartPayload.some((item) => typeof item?.product_id !== "string" || typeof item?.quantity !== "number" || item.quantity <= 0))
+    return json({ error: "Invalid cart payload" }, 400);
 
-  // Find or create customer
-  let customerId: string | undefined;
-  const { data: custs } = await stripe.customers.list({
-    email: user.email,
-    limit: 1,
-  });
-  if (custs.length) customerId = custs[0].id;
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // Build line items + total
-  const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  const { data: cartItems, error: cartError } = await adminClient
+    .from("cart_items")
+    .select(`
+      id,
+      product_id,
+      quantity,
+      products (
+        name,
+        price,
+        stripe_price_id
+      )
+    `)
+    .eq("user_id", user.id);
+
+  if (cartError) {
+    console.error("[create-payment] Failed to load cart", cartError);
+    return json({ error: "Failed to load cart", code: "CART_QUERY_FAILED" }, 500);
+  }
+
+  if (!cartItems || cartItems.length === 0) {
+    console.warn("[create-payment] No items found in database cart", { userId: user.id });
+    return json({ error: "No items in cart", code: "CART_EMPTY" }, 400);
+  }
+
+  const payloadProductIds = new Set(cartPayload.map((item) => item.product_id));
+  const relevantCartItems = cartItems.filter((record) => payloadProductIds.has(record.product_id));
+
+  if (!relevantCartItems.length) {
+    console.warn("[create-payment] Cart payload does not match stored cart", {
+      payloadIds: Array.from(payloadProductIds),
+    });
+    return json({ error: "Cart is out of sync", code: "CART_MISMATCH" }, 409);
+  }
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  const cartMetadata: CartMetadataItem[] = [];
   let totalCents = 0;
 
-  const myprice = await stripe.products.retrieve("prod_Sngih7lAV25oPT");
-  console.log(myprice)
+  for (const record of relevantCartItems) {
+    const product = record.products;
+    if (!product)
+      continue;
 
-  for (const item of cart) {
-    const { stripe_price_id, price, quantity, product_name } = item;
+    const quantity = record.quantity;
+    if (!quantity || quantity <= 0)
+      continue;
 
-    /* ─────── DEBUG ─────── */
-    console.log("🛒 cart item", item);
-    /* ───────────────────── */
+    const unitAmountCents = Math.round(Number(product.price) * 100);
 
-    if (stripe_price_id && stripe_price_id.startsWith("price_")) {
-      line_items.push({ price: stripe_price_id, quantity });
+    if (product.stripe_price_id && product.stripe_price_id.startsWith("price_")) {
+      lineItems.push({ price: product.stripe_price_id, quantity });
     } else {
-      line_items.push({
+      lineItems.push({
         price_data: {
           currency: "usd",
-          unit_amount: Math.round(price * 100),
-          product_data: { name: product_name },
+          unit_amount: unitAmountCents,
+          product_data: {
+            name: product.name,
+          },
         },
         quantity,
       });
     }
 
-    totalCents += Math.round(price * 100) * quantity;
-  }   
-  
+    totalCents += unitAmountCents * quantity;
 
-  const origin =
-    req.headers.get("origin") ??
-    SITE_URL ??
-    ""; // fallback prevents undefined in URLs
+    cartMetadata.push({
+      product_id: record.product_id,
+      quantity,
+      unit_amount_cents: unitAmountCents,
+      stripe_price_id: product.stripe_price_id ?? null,
+      cart_item_id: record.id,
+      product_name: product.name,
+    });
+  }
 
-  if (!origin)
-    return json({ error: "SITE_URL env var not set" }, 500);
+  if (!lineItems.length) {
+    console.error("[create-payment] Computed line items were empty", {
+      cartCount: relevantCartItems.length,
+    });
+    return json({ error: "Unable to create checkout session", code: "LINE_ITEMS_EMPTY" }, 400);
+  }
 
+  const cartMetadataJson = JSON.stringify(cartMetadata);
+  if (cartMetadataJson.length > 500) {
+    console.error("[create-payment] Cart metadata too large", {
+      length: cartMetadataJson.length,
+    });
+    return json({ error: "Cart metadata too large", code: "METADATA_LIMIT" }, 400);
+  }
+
+  const origin = req.headers.get("origin") ?? SITE_URL;
+  if (!origin) {
+    console.error("[create-payment] Missing SITE_URL and request origin");
+    return json({ error: "SITE_URL env var not set", code: "SITE_URL_MISSING" }, 500);
+  }
+
+  const stripe = new Stripe(STRIPE_SECRET, { apiVersion: "2023-10-16" });
 
   try {
-    console.log("Entered TRY")
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
-      line_items,
+      customer_email: user.email,
+      line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${origin}/`,
+      cancel_url: `${origin}/`,
       metadata: {
         user_id: user.id,
-        total_amount_cents: totalCents.toString(),
+        cart_items: cartMetadataJson,
+        total_cents: totalCents.toString(),
+      },
+      payment_intent_data: {
+        receipt_email: user.email,
+        metadata: {
+          user_id: user.id,
+          total_cents: totalCents.toString(),
+        },
       },
     });
-    console.log("SOMETHING")
+
     return json({ url: session.url }, 200);
   } catch (err) {
-    console.error("Stripe error:", err);
-    return json({ error: "Stripe session creation failed" }, 500);
+    console.error("[create-payment] Stripe session creation failed", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return json({ error: "Stripe session creation failed", code: "STRIPE_ERROR", message }, 500);
   }
 });
 
-/*──────────────────────── helpers ────────────────────────*/
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }

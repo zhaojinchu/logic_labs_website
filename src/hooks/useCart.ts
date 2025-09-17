@@ -206,6 +206,7 @@ export function useCart() {
       }
 
       const payload = cartItems.map(item => ({
+        product_id: item.product_id,
         stripe_price_id: item.stripe_price_id,
         price: item.price,
         product_name: item.product_name,
@@ -218,9 +219,11 @@ export function useCart() {
 
       if (error) throw error;
 
-      if (data.url) {
-        window.open(data.url, '_blank');
+      if (!data?.url) {
+        throw new Error('Checkout URL missing');
       }
+
+      window.location.href = data.url;
     } catch (error) {
       console.error('Checkout error:', error);
       toast({

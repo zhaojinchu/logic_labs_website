@@ -53,6 +53,7 @@ export type Database = {
           order_id: string
           price: number
           product_id: string
+          product_name: string | null
           quantity: number
         }
         Insert: {
@@ -61,6 +62,7 @@ export type Database = {
           order_id: string
           price: number
           product_id: string
+          product_name?: string | null
           quantity?: number
         }
         Update: {
@@ -69,6 +71,7 @@ export type Database = {
           order_id?: string
           price?: number
           product_id?: string
+          product_name?: string | null
           quantity?: number
         }
         Relationships: [
@@ -91,27 +94,42 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          customer_email: string | null
+          currency: string | null
           id: string
+          receipt_url: string | null
           shipping_address: Json | null
           status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
           total_amount: number
           updated_at: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          customer_email?: string | null
+          currency?: string | null
           id?: string
+          receipt_url?: string | null
           shipping_address?: Json | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           total_amount: number
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          customer_email?: string | null
+          currency?: string | null
           id?: string
+          receipt_url?: string | null
           shipping_address?: Json | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           total_amount?: number
           updated_at?: string
           user_id?: string | null

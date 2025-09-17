@@ -82,3 +82,22 @@ To sync products between Supabase and Stripe:
    - `SUPABASE_SERVICE_ROLE_KEY=service-key`
    - `STRIPE_SECRET_KEY=stripe-secret-key`
 3. Run `npm run sync:stripe` to perform the synchronization.
+
+## Payment flow configuration
+
+The checkout flow relies on Supabase Edge Functions:
+
+- `create-payment` – creates a Stripe Checkout session using the authenticated user’s cart.
+- `stripe-webhook` – listens for `checkout.session.completed` events, records orders in Supabase, clears the cart, and captures Stripe receipt links.
+- `retrieve-session` – returns an order summary for the signed-in user after redirecting from Stripe.
+
+Make sure the following environment variables are available to your Edge Functions:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ANON_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `SITE_URL` (used to build success/cancel URLs)
+
+After deploying the functions (`supabase functions deploy <name>`), create a Stripe webhook endpoint that points to the deployed `stripe-webhook` function and subscribe it to `checkout.session.completed`. Enable email receipts in your Stripe Dashboard so customers receive confirmations automatically.
