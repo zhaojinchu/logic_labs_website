@@ -5,10 +5,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 /*────────────────────────  CONFIG  ────────────────────────*/
 const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")  ?? "";
 const ANON_KEY      = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY2") ?? "";
+const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const SITE_URL      = Deno.env.get("SITE_URL") ?? "";
-
-console.log(STRIPE_SECRET)
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +16,7 @@ const cors = {
 
 /*────────────────────────  TYPES  ─────────────────────────*/
 interface CartItem {
+  product_id: string;
   stripe_price_id?: string;
   price: number;            // USD
   quantity: number;
@@ -52,6 +51,9 @@ serve(async (req) => {
     return json({ error: "Cart is empty" }, 400);
 
   /* Stripe -----------------------------------------------------------------*/
+  if (!STRIPE_SECRET)
+    return json({ error: "Stripe secret not configured" }, 500);
+
   const stripe = new Stripe(STRIPE_SECRET, { apiVersion: "2023-10-16" });
 
   // Find or create customer
@@ -66,15 +68,8 @@ serve(async (req) => {
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let totalCents = 0;
 
-  const myprice = await stripe.products.retrieve("prod_Sngih7lAV25oPT");
-  console.log(myprice)
-
   for (const item of cart) {
     const { stripe_price_id, price, quantity, product_name } = item;
-
-    /* ─────── DEBUG ─────── */
-    console.log("🛒 cart item", item);
-    /* ───────────────────── */
 
     if (stripe_price_id && stripe_price_id.startsWith("price_")) {
       line_items.push({ price: stripe_price_id, quantity });
@@ -102,8 +97,28 @@ serve(async (req) => {
     return json({ error: "SITE_URL env var not set" }, 500);
 
 
+  const metadata: Record<string, string> = {
+    user_id: user.id,
+    total_amount_cents: totalCents.toString(),
+  };
+
+  const compactCart = cart.map(({ product_id, quantity, price, product_name }) => ({
+    p: product_id,
+    q: quantity,
+    pr: Math.round(price * 100),
+    n: product_name,
+  }));
+
+  const cartMetadata = JSON.stringify(compactCart);
+  if (cartMetadata.length <= 500) {
+    metadata.cart = cartMetadata;
+  } else {
+    const fallback = JSON.stringify(compactCart.map(({ p, q, pr }) => ({ p, q, pr })));
+    if (fallback.length <= 500)
+      metadata.cart = fallback;
+  }
+
   try {
-    console.log("Entered TRY")
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -111,12 +126,8 @@ serve(async (req) => {
       mode: "payment",
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${origin}/`,
-      metadata: {
-        user_id: user.id,
-        total_amount_cents: totalCents.toString(),
-      },
+      metadata,
     });
-    console.log("SOMETHING")
     return json({ url: session.url }, 200);
   } catch (err) {
     console.error("Stripe error:", err);

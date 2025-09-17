@@ -90,28 +90,40 @@ export type Database = {
       }
       orders: {
         Row: {
+          customer_email: string | null
           created_at: string
           id: string
+          receipt_url: string | null
           shipping_address: Json | null
           status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
           total_amount: number
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          customer_email?: string | null
           created_at?: string
           id?: string
+          receipt_url?: string | null
           shipping_address?: Json | null
           status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           total_amount: number
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          customer_email?: string | null
           created_at?: string
           id?: string
+          receipt_url?: string | null
           shipping_address?: Json | null
           status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           total_amount?: number
           updated_at?: string
           user_id?: string | null
