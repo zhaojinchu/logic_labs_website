@@ -57,7 +57,7 @@ logic-labs/
    npm install
    ```
 
-2. **Set environment variables** for the frontend: copy `.env.example` (if present) to `.env.local` and fill in the Supabase URL and anon key. During local dev you can use `SITE_URL=http://localhost:5173`.
+2. **Set environment variables** for the frontend: copy `.env.example` (if present) to `.env.local` and fill in the Supabase URL/an keys. During local dev you can use `SITE_URL=http://localhost:5173` and `VITE_SITE_URL=http://localhost:5173`.
 
 3. **Start Vite**
    ```bash
@@ -77,6 +77,9 @@ The Supabase Edge Functions reuse a shared secret store. Set these values once:
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe signing secret (`whsec_...`) |
 | `SITE_URL` | Base URL used in success/cancel URLs (`http://localhost:5173` during dev) |
+| `VITE_SUPABASE_URL` | Public Supabase URL used by the client bundle |
+| `VITE_SUPABASE_ANON_KEY` | Public anon key exposed to the client |
+| `VITE_SITE_URL` | Public-facing site origin (match production domain) |
 
 Set them locally in `.env` for scripts and the Vite app. For Supabase functions, push them with:
 ```bash
@@ -86,7 +89,7 @@ supabase secrets set \
   SUPABASE_SERVICE_ROLE_KEY=... \
   STRIPE_SECRET_KEY=... \
   STRIPE_WEBHOOK_SECRET=... \
-  SITE_URL=http://localhost:5173
+  SITE_URL=https://your-production-domain.com
 ```
 
 Supabase applies these secrets to all functions in the project.

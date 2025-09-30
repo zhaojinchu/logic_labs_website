@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { getSiteOrigin } from "@/lib/siteUrl";
 
 interface CartItem {
   id: string;
@@ -214,7 +215,11 @@ export function useCart() {
       }));
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: { cartItems: payload }
+        body: { cartItems: payload },
+        headers: (() => {
+          const origin = getSiteOrigin();
+          return origin ? { 'x-site-url': origin } : undefined;
+        })(),
       });
 
       if (error) throw error;

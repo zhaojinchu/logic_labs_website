@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { getSiteOrigin } from "@/lib/siteUrl";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,6 +19,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState<any>(null);
+  const siteUrl = useMemo(() => getSiteOrigin(), []);
+  const siteUrlWithTrailingSlash = useMemo(() => (
+    siteUrl ? `${siteUrl}/` : undefined
+  ), [siteUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -34,7 +39,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo: window.location.origin },
+        options: siteUrl ? { redirectTo: siteUrl } : undefined,
       });
 
       if (error) throw error;
@@ -59,7 +64,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: siteUrlWithTrailingSlash,
         },
       });
 
@@ -119,7 +124,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: siteUrlWithTrailingSlash,
       });
 
       if (error) throw error;

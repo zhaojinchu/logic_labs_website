@@ -22,6 +22,20 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const STRIPE_SECRET = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const SITE_URL = Deno.env.get("SITE_URL") ?? "";
 
+const sanitizeOrigin = (value: string | null | undefined) => {
+  if (!value)
+    return null;
+  try {
+    const url = new URL(value);
+    if (!url.protocol.startsWith("http"))
+      return null;
+    return `${url.protocol}//${url.host}`;
+  } catch (err) {
+    console.warn("[create-payment] Ignoring invalid origin", { value, err });
+    return null;
+  }
+};
+
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY || !STRIPE_SECRET) {
   console.error("[create-payment] Missing required environment variables", {
     hasSupabaseUrl: Boolean(SUPABASE_URL),
@@ -33,7 +47,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY || !STRIPE
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-site-url",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -168,7 +182,12 @@ serve(async (req) => {
     return json({ error: "Cart metadata too large", code: "METADATA_LIMIT" }, 400);
   }
 
-  const origin = req.headers.get("origin") ?? SITE_URL;
+  const headerOrigin = sanitizeOrigin(req.headers.get("x-site-url"));
+  const requestOrigin = headerOrigin ?? sanitizeOrigin(req.headers.get("origin"));
+  const fallbackOrigin = sanitizeOrigin(SITE_URL);
+  const origin = requestOrigin && !requestOrigin.endsWith(".supabase.co")
+    ? requestOrigin
+    : headerOrigin ?? fallbackOrigin;
   if (!origin) {
     console.error("[create-payment] Missing SITE_URL and request origin");
     return json({ error: "SITE_URL env var not set", code: "SITE_URL_MISSING" }, 500);
